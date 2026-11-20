@@ -1,0 +1,63 @@
+
+pipeline {
+    agent any
+
+    environment {
+        IMAGE_NAME = 'docker-dashboard'
+        CONTAINER_NAME = 'docker-dashboard'
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                echo 'Fetching code from GitHub...'
+                checkout scm
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                echo 'Building Docker image...'
+                sh 'docker build -t ${IMAGE_NAME}:${BUILD_NUMBER} .'
+            }
+        }
+
+        stage('Stop Old Container') {
+            steps {
+                echo 'Stopping old container...'
+                sh 'docker rm -f ${CONTAINER_NAME} || true'
+            }
+        }
+
+        stage('Deploy Container') {
+            steps {
+                echo 'Deploying new container...'
+                sh '''
+                    docker run -d \
+                    --name ${CONTAINER_NAME} \
+                    --restart unless-stopped \
+                    -p 80:80 \
+                    ${IMAGE_NAME}:${BUILD_NUMBER}
+                '''
+            }
+        }
+
+        stage('Verify Deployment') {
+            steps {
+                echo 'Checking running container...'
+                sh 'docker ps'
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'SUCCESS: Website deployed successfully!'
+        }
+
+        failure {
+            echo 'ERROR: Pipeline execution failed!'
+        }
+    }
+}
