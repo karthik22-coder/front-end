@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Docker Dashboard UI</title>
+  <style>
+    :root {
+      --bg: #0b1220;
+      --panel: #111c2e;
+      --panel-2: #16243a;
+      --line: #263750;
+      --text: #edf4ff;
+      --muted: #8fa2bd;
+      --blue: #2496ed;
+      --cyan: #55c8f5;
+      --green: #35c98a;
+      --orange: #ffb454;
+      --red: #ff6b75;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; color: var(--text);
+      background: radial-gradient(circle at 80% 0%, #132b49 0, transparent 30%), var(--bg);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
+    }
+    .app { display: flex; min-height: 100vh; }
+    aside {
+      width: 245px; padding: 26px 18px; border-right: 1px solid var(--line);
+      background: rgba(10, 18, 31, .88); display: flex; flex-direction: column;
+    }
+    .brand { display:flex; align-items:center; gap:12px; padding: 0 10px 34px; font-size:20px; font-weight:750; }
+    .brand-mark { width:38px; height:38px; display:grid; place-items:center; border-radius:12px; background:#153e61; color:#59c9ff; font-size:23px; }
+    .nav-label { color:#61748f; font-size:10px; font-weight:800; letter-spacing:1.5px; padding: 0 12px 12px; }
+    nav { display:grid; gap:7px; }
+    .nav-item { display:flex; align-items:center; gap:13px; color:var(--muted); text-decoration:none; padding:12px 13px; border-radius:10px; font-size:14px; transition:.2s; }
+    .nav-item:hover, .nav-item.active { background:#172c45; color:#fff; }
+    .nav-item.active { box-shadow: inset 3px 0 var(--blue); }
+    .nav-icon { width:20px; text-align:center; font-size:17px; }
+    .sidebar-bottom { margin-top:auto; padding:16px 12px; border:1px solid var(--line); border-radius:12px; color:var(--muted); font-size:12px; line-height:1.6; }
+    .online-dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--green); margin-right:7px; }
+    main { flex:1; min-width:0; padding:30px 38px 42px; max-width:1500px; margin:auto; width:100%; }
+    header { display:flex; align-items:center; justify-content:space-between; gap:20px; margin-bottom:32px; }
+    h1 { font-size:27px; margin:0 0 7px; letter-spacing:-.7px; }
+    .subtitle { color:var(--muted); font-size:13px; }
+    .header-actions { display:flex; gap:10px; align-items:center; }
+    button { cursor:pointer; border:0; color:white; font:inherit; }
+    .btn { border:1px solid var(--line); background:#14243a; border-radius:9px; padding:10px 14px; font-size:12px; font-weight:650; }
+    .btn:hover { background:#1d3552; }
+    .btn-primary { background:var(--blue); border-color:var(--blue); }
+    .btn-primary:hover { background:#147fcf; }
+    .profile { width:36px; height:36px; border-radius:50%; display:grid; place-items:center; background:#23415f; font-weight:700; font-size:12px; }
+    .section-heading { display:flex; justify-content:space-between; align-items:center; margin:27px 0 14px; }
+    h2 { font-size:16px; margin:0; }
+    .muted { color:var(--muted); font-size:12px; }
+    .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:15px; }
+    .card { background:linear-gradient(145deg, rgba(22,36,58,.96), rgba(16,28,46,.96)); border:1px solid var(--line); border-radius:14px; }
+    .stat { padding:19px; position:relative; overflow:hidden; }
+    .stat-top { display:flex; justify-content:space-between; color:var(--muted); font-size:12px; }
+    .stat-icon { width:32px; height:32px; border-radius:9px; display:grid; place-items:center; background:#183b5b; color:#66caff; font-size:17px; }
+    .stat-number { font-size:29px; font-weight:750; margin:14px 0 4px; letter-spacing:-1px; }
+    .stat-note { color:var(--muted); font-size:11px; }
+    .stat-note strong { color:var(--green); font-weight:650; }
+    .content-grid { display:grid; grid-template-columns:minmax(0,1.55fr) minmax(270px,.85fr); gap:16px; }
+    .panel { padding:20px; }
+    .panel-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:17px; }
+    .table-wrap { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; min-width:490px; text-align:left; }
+    th { color:#7186a2; font-size:10px; letter-spacing:1px; font-weight:700; padding:0 10px 12px; }
+    td { border-top:1px solid #23344c; padding:14px 10px; font-size:12px; color:#cbd8e9; }
+    .container-name { color:#f2f7ff; font-weight:650; }
+    .subline { color:#7186a2; font-size:10px; margin-top:4px; }
+    .status { display:inline-flex; align-items:center; gap:6px; border-radius:20px; padding:5px 9px; font-size:10px; font-weight:700; }
+    .running { color:#58dda6; background:#123b34; }
+    .stopped { color:#ffb454; background:#49351f; }
+    .status::before { content:""; width:6px; height:6px; border-radius:50%; background:currentColor; }
+    .action { color:#8fa2bd; background:transparent; font-size:17px; padding:2px 7px; }
+    .resource { margin:18px 0 22px; }
+    .resource-title { display:flex; justify-content:space-between; font-size:12px; margin-bottom:9px; }
+    .resource-title span:last-child { color:var(--muted); }
+    .track { height:7px; background:#263750; border-radius:20px; overflow:hidden; }
+    .fill { height:100%; border-radius:20px; background:linear-gradient(90deg,var(--blue),var(--cyan)); }
+    .fill.green { background:linear-gradient(90deg,#1baf79,#56dda7); }
+    .fill.orange { background:linear-gradient(90deg,#e78a35,#ffc16e); }
+    .activity { display:grid; gap:16px; }
+    .activity-item { display:flex; gap:12px; align-items:flex-start; }
+    .activity-icon { width:29px; height:29px; flex:none; display:grid; place-items:center; border-radius:9px; background:#1b3550; color:#67caff; }
+    .activity-text { font-size:11px; line-height:1.5; color:#cbd8e9; }
+    .activity-text small { display:block; color:#7186a2; margin-top:3px; }
+    .tag { border:1px solid var(--line); color:var(--muted); padding:5px 8px; border-radius:7px; font-size:10px; }
+    .toast { position:fixed; right:22px; bottom:22px; background:#173b34; color:#8ff0c3; border:1px solid #276b58; padding:12px 16px; border-radius:10px; font-size:12px; opacity:0; transform:translateY(10px); transition:.25s; pointer-events:none; }
+    .toast.show { opacity:1; transform:translateY(0); }
+    @media (max-width: 1000px) {
+      aside { width:205px; }
+      main { padding:25px 22px; }
+      .stats { grid-template-columns:repeat(2,1fr); }
+    }
+    @media (max-width: 720px) {
+      .app { display:block; }
+      aside { width:100%; padding:15px; border-right:0; border-bottom:1px solid var(--line); }
+      .brand { padding:0 5px 14px; }
+      .nav-label, .sidebar-bottom { display:none; }
+      nav { display:flex; overflow-x:auto; }
+      .nav-item { white-space:nowrap; padding:9px 11px; }
+      main { padding:23px 15px; }
+      header { align-items:flex-start; }
+      h1 { font-size:23px; }
+      .header-actions .btn:first-child { display:none; }
+      .content-grid { grid-template-columns:1fr; }
+    }
+    @media (max-width: 420px) {
+      .stats { gap:9px; }
+      .stat { padding:14px; }
+      .stat-number { font-size:24px; }
+      .header-actions .btn { padding:9px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside>
+      <div class="brand"><div class="brand-mark">🐳</div> dock<span style="color:#55c8f5">er</span></div>
+      <div class="nav-label">WORKSPACE</div>
+      <nav>
+        <a class="nav-item active" href="#"><span class="nav-icon">▦</span>Overview</a>
+        <a class="nav-item" href="#containers"><span class="nav-icon">▣</span>Containers</a>
+        <a class="nav-item" href="#images"><span class="nav-icon">▧</span>Images</a>
+        <a class="nav-item" href="#volumes"><span class="nav-icon">◫</span>Volumes</a>
+        <a class="nav-item" href="#networks"><span class="nav-icon">⌘</span>Networks</a>
+      </nav>
+      <div class="sidebar-bottom">
+        <div><span class="online-dot"></span>Docker Engine connected</div>
+        <div style="margin-top:5px">Demo interface · Frontend only</div>
+      </div>
+    </aside>
+
+    <main>
+      <header>
+        <div>
+          <h1>Dashboard overview</h1>
+          <div class="subtitle">Monitor your Docker environment at a glance.</div>
+        </div>
+        <div class="header-actions">
+          <button class="btn" onclick="notify('This is a frontend demo.')">＋ Create</button>
+          <button class="btn btn-primary" onclick="notify('Dashboard refreshed!')">↻ Refresh</button>
+          <div class="profile">DK</div>
+        </div>
+      </header>
+
+      <div class="section-heading">
+        <h2>Resource summary</h2><span class="muted">Demo data</span>
+      </div>
+      <section class="stats">
+        <div class="card stat">
+          <div class="stat-top"><span>Containers</span><span class="stat-icon">▣</span></div>
+          <div class="stat-number">12</div><div class="stat-note"><strong>8 running</strong> · 4 stopped</div>
+        </div>
+        <div class="card stat">
+          <div class="stat-top"><span>Images</span><span class="stat-icon">▧</span></div>
+          <div class="stat-number">24</div><div class="stat-note">Across 9 repositories</div>
+        </div>
+        <div class="card stat">
+          <div class="stat-top"><span>Volumes</span><span class="stat-icon">◫</span></div>
+          <div class="stat-number">6</div><div class="stat-note">3.2 GB total storage</div>
+        </div>
+        <div class="card stat">
+          <div class="stat-top"><span>Networks</span><span class="stat-icon">⌘</span></div>
+          <div class="stat-number">4</div><div class="stat-note">2 custom networks</div>
+        </div>
+      </section>
+
+      <div class="section-heading"><h2>Environment</h2><span class="tag">Local · Demo</span></div>
+      <section class="content-grid">
+        <div class="card panel" id="containers">
+          <div class="panel-head"><h2>Containers</h2><button class="btn" onclick="notify('Showing all demo containers')">View all →</button></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>NAME</th><th>STATUS</th><th>IMAGE</th><th>CPU</th><th></th></tr></thead>
+              <tbody>
+                <tr><td><div class="container-name">web-frontend</div><div class="subline">a81c9f2d</div></td><td><span class="status running">Running</span></td><td>nginx:latest</td><td>2.4%</td><td><button class="action" onclick="notify('Container actions are demo only')">⋮</button></td></tr>
+                <tr><td><div class="container-name">api-server</div><div class="subline">b72d8e1a</div></td><td><span class="status running">Running</span></td><td>node:20</td><td>5.8%</td><td><button class="action" onclick="notify('Container actions are demo only')">⋮</button></td></tr>
+                <tr><td><div class="container-name">database</div><div class="subline">c63e7d0b</div></td><td><span class="status running">Running</span></td><td>postgres:16</td><td>1.2%</td><td><button class="action" onclick="notify('Container actions are demo only')">⋮</button></td></tr>
+                <tr><td><div class="container-name">redis-cache</div><div class="subline">d54f6c9e</div></td><td><span class="status stopped">Stopped</span></td><td>redis:alpine</td><td>—</td><td><button class="action" onclick="notify('Container actions are demo only')">⋮</button></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card panel">
+          <div class="panel-head"><h2>Resource usage</h2><span class="muted">Current</span></div>
+          <div class="resource"><div class="resource-title"><span>CPU usage</span><span>38%</span></div><div class="track"><div class="fill" style="width:38%"></div></div></div>
+          <div class="resource"><div class="resource-title"><span>Memory usage</span><span>62% · 4.9 GB / 8 GB</span></div><div class="track"><div class="fill green" style="width:62%"></div></div></div>
+          <div class="resource"><div class="resource-title"><span>Disk usage</span><span>45% · 22.5 GB / 50 GB</span></div><div class="track"><div class="fill orange" style="width:45%"></div></div></div>
+          <div style="border-top:1px solid var(--line);padding-top:16px;margin-top:23px">
+            <div class="muted" style="margin-bottom:8px">DOCKER ENGINE</div>
+            <div style="font-size:13px;font-weight:650">Docker Engine 27.1.1</div>
+            <div class="muted" style="margin-top:5px">Linux · x86_64 · Demo environment</div>
+          </div>
+        </div>
+      </section>
+
+      <div class="section-heading"><h2>Recent activity</h2><span class="muted">Latest events</span></div>
+      <section class="card panel">
+        <div class="activity">
+          <div class="activity-item"><div class="activity-icon">▶</div><div class="activity-text"><strong>web-frontend</strong> container started successfully<small>2 minutes ago · Container</small></div></div>
+          <div class="activity-item"><div class="activity-icon">⬇</div><div class="activity-text"><strong>nginx:latest</strong> image pulled successfully<small>18 minutes ago · Image</small></div></div>
+          <div class="activity-item"><div class="activity-icon">◫</div><div class="activity-text"><strong>app-data</strong> volume created<small>1 hour ago · Volume</small></div></div>
+        </div>
+      </section>
+      <div class="muted" style="text-align:center;margin-top:25px">Docker Dashboard UI · Built with HTML, CSS & JavaScript · Frontend demo only</div>
+    </main>
+  </div>
+  <div class="toast" id="toast">Action completed</div>
+  <script>
+    let toastTimer;
+    function notify(message) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove('show'), 2300);
+    }
+  </script>
+</body>
+</html>
