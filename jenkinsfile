@@ -1,0 +1,35 @@
+
+pipeline {
+    agent any
+
+    stages {
+        stage('Checkout') {
+            steps {
+                echo 'Fetching code from GitHub'
+                checkout scm
+            }
+        }
+
+        stage('Build') {
+            steps {
+                echo 'Preparing Docker Dashboard'
+                sh 'test -f docker-dashboard.html'
+            }
+        }
+
+        stage('Test') {
+            steps {
+                echo 'Testing HTML file'
+                sh 'test -s docker-dashboard.html'
+                sh 'grep -qi "<html" docker-dashboard.html'
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                echo 'Deploying to Nginx'
+                sh 'sudo cp docker-dashboard.html /var/www/html/index.html'
+            }
+        }
+    }
+}
